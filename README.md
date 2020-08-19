@@ -1,22 +1,19 @@
 - INSTALL
 
 Put "render_scale.inx" and "render_scale.py" in your Inkscape extension directory.
-Inkscpae Preferences will navigate you to the user extensions folder.
+On Linux:   "~/.config/inkscape/extensions/"
+On Windows: "Inkscape\share\extensions\" (inside your programs folder)
 
 - COMMENT
-Updated to Inkscape 1.0 and some features added (Neon22)
-
 Tested on Inkscape 0.91
 Author: Sascha Poczihoski
 Contact me at s.pocz@posteo.de
 
 - Known bugs
 	ui float precision is limited to 1
-	[fixed]suffix doesn't support several special chars
+	suffix doesn't support several special chars
 
 - Changelog
-2020 detailed changes can be examined in the github history
-
 05.03.2015
 	Added Label offset. This will move the labels side to side and up/down.
 	Added option to use the center of a bounding box as the drawing reference.
