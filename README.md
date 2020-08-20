@@ -1,6 +1,7 @@
 ## Instrument_scale
 Create a linear or circular arc display suitable for various kinds of panel meter.
 Settings for  range, tick marks, labels, and angles for the circular option.
+Many minor improvements to label placement, corner cases fixed, etc.
 
 Useful unicode char for Temperature = °
 

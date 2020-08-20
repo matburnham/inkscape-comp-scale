@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding=utf-8
 '''
-Copyright (C) 
+Copyright (C)
 2009 Sascha Poczihoski, sascha@junktech.de
 Original author.
 
@@ -16,12 +16,23 @@ Adapted Inkscape 0.91 API changes.
 	Label offset. This will move the labels side to side and up/down.
 	Option to use the center of a bounding box as the drawing reference.
 	Ability to set line stroke width.
-	Option to add a perpendicular line. 
+	Option to add a perpendicular line.
 	Mathematical expression for the number format. For example, to divide the label number by 2, use "n/2".
 	"Draw all labels" checkbox.
 	Option to flip the label orientation.
 	Support for "Draw every x lines" = 0 in order to remove lines.
 
+2020 Neon22 github
+- migrated to inkscape 1.0
+- fixed font adjustments for flipping, inverting, etc
+- fixed 360 degree circulars
+- fixed centering on selected items
+- added internal docs
+- clarified UI, words, values
+- improved groupings
+- cleaned up params affected by units
+- fixed perplines for invert
+- help tab
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
@@ -37,9 +48,6 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-TODO
-	- fix bug: special chars in suffix
-	
 #for debugging:
 message = "Debug: " + str(i) + "\n"
 inkex.debug(message)
@@ -50,7 +58,7 @@ import sys, math
 
 import inkex
 from simplestyle import *
-from simpletransform import *
+from lxml import etree
 
 class ScaleGen(inkex.Effect):
 
@@ -59,165 +67,163 @@ class ScaleGen(inkex.Effect):
 		# Call the base class constructor.
 		inkex.Effect.__init__(self)
 
-		# Define string option "--what" with "-w" shortcut and default value "World".
-		self.OptionParser.add_option('-f', '--scalefrom', action = 'store',
-			type = 'int', dest = 'scalefrom', default = '0',
+		# Page 1 (Shape)
+		self.arg_parser.add_argument('-u', '--unit',
+			type = str, dest = 'unit', default = 'mm',
+			help = 'Unit:')
+		self.arg_parser.add_argument('-p', '--stype',
+			type = str, dest = 'stype', default = 'circular',
+			help = 'Type of Scale to draw')
+		self.arg_parser.add_argument('--useref',
+			type = inkex.Boolean, dest = 'useref', default = 'False',
+			help = 'Reference is bounding box center')
+		self.arg_parser.add_argument('--insidetf',
+			type = inkex.Boolean, dest = 'insidetf', default = 'False',
+			help = 'Draw lines above or below line')
+		#
+		self.arg_parser.add_argument('-b', '--external_length',
+			type = float, dest = 'external_length', default = '100',
+			help = 'Lengh of straight graph.')
+		self.arg_parser.add_argument('--orientation',
+			type = str, dest = 'orientation', default = '0',
+			help = 'Major axis')
+		self.arg_parser.add_argument('--radius',
+			type = float, dest = 'radius', default = '100',
+			help = 'Circular Scale Radius')
+		self.arg_parser.add_argument('--originmark',
+			type = inkex.Boolean, dest = 'originmark', default = 'True',
+			help = 'Mark origin')
+		self.arg_parser.add_argument('--scaleradbegin',
+			type = float, dest = 'scaleradbegin', default = '0',
+			help = 'Radial Start angle')
+		self.arg_parser.add_argument('--scaleradcount',
+			type = float, dest = 'scaleradcount', default = '90',
+			help = 'Radial end angle')
+
+		## Page 2 (Labels)
+		self.arg_parser.add_argument('--drawalllabels',
+			type = inkex.Boolean, dest = 'drawalllabels', default = 'True',
+			help = 'Draw labels')
+		self.arg_parser.add_argument('-f', '--scalefrom',
+			type = int, dest = 'scalefrom', default = '0',
 			help = 'Number from...')
-		self.OptionParser.add_option('-t', '--scaleto', action = 'store',
-			type = 'int', dest = 'scaleto', default = '20',
+		self.arg_parser.add_argument('-t', '--scaleto',
+			type = int, dest = 'scaleto', default = '20',
 			help = 'Number to...')
-		self.OptionParser.add_option('', '--mathexpression', action = 'store',
-			type = 'string', dest = 'mathexpression', default = '',
+		self.arg_parser.add_argument('--mathexpression',
+			type = str, dest = 'mathexpression', default = ' ',
 			help = 'Math expression')
-		self.OptionParser.add_option('-c', '--reverse', action = 'store',
-			type = 'string', dest = 'reverse', default = 'false',
-			help = 'Reverse order:')
-		self.OptionParser.add_option('-p', '--type', action = 'store',
-			type = 'string', dest = 'type', default = 'false',
-			help = 'Type:')      
-		self.OptionParser.add_option('', '--radius', action = 'store',
-			type = 'float', dest = 'radius', default = '100',
-			help = 'Radius')
-		self.OptionParser.add_option('', '--scaleradcount', action = 'store',
-			type = 'float', dest = 'scaleradcount', default = '90',
-			help = 'Circular count')
-		self.OptionParser.add_option('', '--scaleradbegin', action = 'store',
-			type = 'float', dest = 'scaleradbegin', default = '0',
-			help = 'Circular begin')                         
-		self.OptionParser.add_option('', '--radmark', action = 'store',
-			type = 'string', dest = 'radmark', default = 'True',
-			help = 'Mark origin')           
-		self.OptionParser.add_option('', '--insidetf', action = 'store',
-			type = 'inkbool', dest = 'insidetf', default = 'False',
-			help = 'Swap inside out')           
-		self.OptionParser.add_option('', '--ishorizontal', action = 'store',
-			type = 'string', dest = 'ishorizontal', default = 'False',
-			help = 'Horizontal labels')  
-		self.OptionParser.add_option('', '--rotate', action = 'store',
-			type = 'string', dest = 'rotate', default = '0',
-			help = 'Rotate:')                   
-		self.OptionParser.add_option('-b', '--units_per_line', action = 'store',
-			type = 'float', dest = 'units_per_line', default = '100',
-			help = 'Units per line')                   
-		self.OptionParser.add_option('-g', '--labellinelength', action = 'store',
-			type = 'float', dest = 'labellinelength', default = '100',
-			help = 'Label line - Length')
-		self.OptionParser.add_option('-s', '--fontsize', action = 'store',
-			type = 'float', dest = 'fontsize', default = '3',
-			help = 'Font Size:')
-		self.OptionParser.add_option('-i', '--suffix', action = 'store',
-			type = 'string', dest = 'suffix', default = '',
-			help = 'Suffix:')
-		self.OptionParser.add_option('', '--drawalllabels', action = 'store',
-			type = 'inkbool', dest = 'drawalllabels', default = 'True',
-			help = 'Draw all labels') 
-		self.OptionParser.add_option('', '--fliplabel', action = 'store',
-			type = 'inkbool', dest = 'fliplabel', default = 'False',
-			help = 'Flip orientation') 
+		self.arg_parser.add_argument('-c', '--reverse',
+			type = inkex.Boolean, dest = 'reverse', default = 'False',
+			help = 'Reverse order')
+		#
+		self.arg_parser.add_argument('-s', '--fontsize',
+			type = float, dest = 'fontsize', default = '3',
+			help = 'Font Height')
+		self.arg_parser.add_argument('-i', '--suffix',
+			type = str, dest = 'suffix', default = ' ',
+			help = 'Appended to label')
+		self.arg_parser.add_argument('--ishorizontal',
+			type = inkex.Boolean, dest = 'ishorizontal', default = 'False',
+			help = 'Horizontal labels')
+		self.arg_parser.add_argument('--fliplabel',
+			type = inkex.Boolean, dest = 'fliplabel', default = 'False',
+			help = 'Flip orientation')
+		# label offset
+		self.arg_parser.add_argument('-x', '--labeloffseth',
+			type = float, dest = 'labeloffseth', default = '0.0',
+			help = 'Label offset in X')
+		self.arg_parser.add_argument('-y', '--labeloffsetv',
+			type = float, dest = 'labeloffsetv', default = '0.0',
+			help = 'Label offset in Y')
+		self.arg_parser.add_argument('--labeloffsetr',
+			type = float, dest = 'labeloffsetr', default = '0.0',
+			help = 'Radial Label offset')
 			
-		self.OptionParser.add_option('', '--labellinestrokewidth', action = 'store',
-			type = 'float', dest = 'labellinestrokewidth', default = '0.4',		
-			help = 'Label line - Stroke width')
-		self.OptionParser.add_option('', '--longlinestrokewidth', action = 'store',
-			type = 'float', dest = 'longlinestrokewidth', default = '0.2',		
-			help = 'Long line - Stroke width')
-		self.OptionParser.add_option('', '--shortlinestrokewidth', action = 'store',
-			type = 'float', dest = 'shortlinestrokewidth', default = '0.2',
+		## Page 3 (Lines)
+		self.arg_parser.add_argument("--perpline",
+			type = inkex.Boolean, dest = "perpline", default=True,
+			help = "Perpendicular line")
+		self.arg_parser.add_argument('--perplinestrokewidth',
+			type = float, dest = 'perplinestrokewidth', default = '0.2',
+			help = 'Perpendicular line - Stroke width')
+		self.arg_parser.add_argument('--perplineoffset',
+			type = float, dest = 'perplineoffset', default = '0',
+			help = 'Offset')
+		#
+		self.arg_parser.add_argument('-g', '--labellinelength',
+			type = float, dest = 'labellinelength', default = '100',
+			help = 'Length of main Label line')
+		self.arg_parser.add_argument('--labellinestrokewidth',
+			type = float, dest = 'labellinestrokewidth', default = '0.4',
+			help = 'Stroke width of main Label line')
+		self.arg_parser.add_argument('-m', '--mark0',
+			type = int, dest = 'mark0', default = '10',
+			help = 'Draw every Nth label line')
+		#
+		self.arg_parser.add_argument('-w', '--mark1wid',
+			type = int, dest = 'mark1wid', default = '75',
+			help = 'Length of Long lines')
+		self.arg_parser.add_argument('--longlinestrokewidth',
+			type = float, dest = 'longlinestrokewidth', default = '0.2',
+			help = 'Long lines - Stroke width')
+		self.arg_parser.add_argument('-n', '--mark1',
+			type = int, dest = 'mark1', default = '5',
+			help = 'Draw every Nth  Long line')
+		#
+		self.arg_parser.add_argument('-v', '--mark2wid',
+			type = int, dest = 'mark2wid', default = '50',
+			help = 'Short line: - Length (units): (\%):')
+		self.arg_parser.add_argument('--shortlinestrokewidth',
+			type = float, dest = 'shortlinestrokewidth', default = '0.2',
 			help = 'Short line - Stroke width')
-			
-		self.OptionParser.add_option('', '--perplinestrokewidth', action = 'store',
-			type = 'float', dest = 'perplinestrokewidth', default = '0.2',
-			help = 'Perpendicular line - Stroke width')	
-
-			# label offset
-		self.OptionParser.add_option('-x', '--labeloffseth', action = 'store',
-			type = 'float', dest = 'labeloffseth', default = '0',
-			help = 'Label offset h:')   
-		self.OptionParser.add_option('-y', '--labeloffsetv', action = 'store',
-			type = 'float', dest = 'labeloffsetv', default = '-3.5',
-			help = 'Label offset v:') 
-		         
-		# line spacing
-		self.OptionParser.add_option('-m', '--mark0', action = 'store',
-			type = 'int', dest = 'mark0', default = '10',
-			help = 'Label line - Draw every x lines:')
-		self.OptionParser.add_option('-n', '--mark1', action = 'store',
-			type = 'int', dest = 'mark1', default = '5',
-			help = 'Long line - Draw every x lines')
-		self.OptionParser.add_option('-o', '--mark2', action = 'store',
-			type = 'int', dest = 'mark2', default = '1',
+		self.arg_parser.add_argument('-o', '--mark2',
+			type = int, dest = 'mark2', default = '1',
 			help = 'Short line - Draw every x lines')
-      
-		# line length
-		self.OptionParser.add_option('-w', '--mark1wid', action = 'store',
-			type = 'int', dest = 'mark1wid', default = '75',
-			help = 'Long line: - Length (units): (\%):')
-		self.OptionParser.add_option('-v', '--mark2wid', action = 'store',
-			type = 'int', dest = 'mark2wid', default = '50',
-			help = 'Short line: - Length (units): (\%):')       
 
-		self.OptionParser.add_option('-u', '--unit', action = 'store',
-			type = 'string', dest = 'unit', default = 'mm',
-			help = 'Unit:')   
-		self.OptionParser.add_option('', '--useref', action = 'store',
-			type = 'inkbool', dest = 'useref', default = False,
-			help = 'Reference is bounding box center')   			
-		self.OptionParser.add_option('', '--tab', action = 'store',
-			type = 'string', dest = 'tab', default = 'global',
-			help = '')   
+		#dummy for the doc tab - which is named
+		self.arg_parser.add_argument("--tab",
+			dest = "tab", default="use",
+			help = "The selected UI-tab when OK was pressed")
 
-		self.OptionParser.add_option("--perpline", action="store", type="inkbool", 
-			dest="perpline", default=True,
-			help="Perpendicular line") 		
 
-		self.OptionParser.add_option('', '--perplineoffset', action = 'store',
-			type = 'float', dest = 'perplineoffset', default = '0',
-			help = 'Offset')					
+	def add_numeric_label(self, n, x, y, group, fontsize, phi = 0.0):
+		""" draw text at x,y location
+			Phi is used to rotate text to line up in circular chart
+		"""
 
-	def addLabel(self, n, x, y, group, fontsize, phi = 0.0):
+		# swapped and horizontal
+		if self.scaletype == 'straight' and self.insidetf and self.orientation=='V':
+			self.labeloffsetv *= -1
 
-		mathexpression = self.options.mathexpression
-		fliplabel = self.options.fliplabel
-		drawalllabels = self.options.drawalllabels
-		labeloffseth = self.options.labeloffseth
-		labeloffsetv = self.options.labeloffsetv
-		scaletype = self.options.type
-		insidetf = self.options.insidetf
-		rotate = self.options.rotate
-		unit = self.options.unit   
-		
-		fontsize = self.unittouu(str(fontsize)+unit) 
-		labeloffseth = self.unittouu(str(labeloffseth)+unit) 
-		labeloffsetv = self.unittouu(str(labeloffsetv)+unit) 
-		
-		#swapped and horizontal
-		if scaletype == 'straight' and insidetf and rotate=='90':
-			labeloffsetv *= -1
-			
-		#swapped and vertical
-		if scaletype == 'straight' and insidetf and rotate=='0':
-			labeloffseth *= -1
-				
-		if drawalllabels==True:		
-			if fliplabel==True:
+		# swapped and vertical
+		if self.scaletype == 'straight' and self.insidetf and self.orientation=='H':
+			self.labeloffseth *= -1
+
+		if self.drawalllabels:
+			font_height_offset = 0
+			if self.fliplabel:
 				phi += 180
+				font_height_offset = self.svg.unittouu(str(self.fontsize)+"mm")*0.9
 
-			if scaletype == 'straight':
-				x = float(x) + labeloffseth
-				y = float(y) - labeloffsetv
-			
-			res = self.options.units_per_line
-			pos = n*res + fontsize/2
-			suffix = self.options.suffix.decode('utf-8') # fix ° (degree char)
-			text = inkex.etree.SubElement(group, inkex.addNS('text','svg'))
-			
+			if not self.insidetf:
+				font_height_offset -= self.svg.unittouu(str(self.fontsize)+"mm")
+
+			if self.scaletype == 'straight':
+				x = float(x) + self.labeloffseth
+				y = float(y) - self.labeloffsetv - font_height_offset
+
+			pos = n*self.res + fontsize/2
+			suffix = self.suffix  #.decode('utf-8') # fix ° (degree char)
+			text = etree.SubElement(group, inkex.addNS('text','svg'))
+
 			number = n;
 			try:
-				number = eval(mathexpression)
+				number = eval(self.mathexpression)
 			except (ValueError, SyntaxError, NameError):
 				pass
 
-			text.text = str(number)+suffix
+			text.text = str(number)+self.suffix
 			cosphi=math.cos(math.radians(phi))
 			sinphi=math.sin(math.radians(phi))
 			a1 = str(cosphi)
@@ -226,38 +232,31 @@ class ScaleGen(inkex.Effect):
 			a4 = str(cosphi)
 			a5 = str((1-cosphi)*x-sinphi*y)
 			a6 = str(sinphi*x+(1-cosphi)*y)
-			fs = str(fontsize)
-			style = {'text-align' : 'center', 'text-anchor': 'middle', 'font-size': fs}
-			text.set('style', formatStyle(style))
-			text.set('transform', 'matrix({0},{1},{2},{3},{4},{5})'.format(a1,a2,a3,a4,a5,a6))        
+			#
+			style = {'text-align' : 'center', 'text-anchor': 'middle', 'font-size': str(fontsize)}
+			text.set('style', str(inkex.Style(style)))
+			text.set('transform', 'matrix({0},{1},{2},{3},{4},{5})'.format(a1,a2,a3,a4,a5,a6))
 			text.set('x', str(float(x)))
-			text.set('y', str(float(y)))        
+			text.set('y', str(float(y)))
 			group.append(text)
 
-	def addLine(self, i, scalefrom, scaleto, group, grpLabel, type=2):
-		reverse = self.options.reverse
-		rotate = self.options.rotate
-		unit = self.options.unit    	
-		fontsize = self.options.fontsize
-		res = self.options.units_per_line
-		labellinestrokewidth = self.options.labellinestrokewidth
-		longlinestrokewidth = self.options.longlinestrokewidth
-		shortlinestrokewidth = self.options.shortlinestrokewidth
-		insidetf = self.options.insidetf			
-		
-		perplinestrokewidth = self.options.perplinestrokewidth
-		perplineoffset = self.options.perplineoffset
 
-		factor = 1
-		if insidetf==True:
-			factor = -1
-		
-		#vertical
-		if rotate=='0':
+	def add_straight_line(self, i, scalefrom, scaleto, group, grpLabel, type=2):
+		""" Used for straight line graphs.
+			add_numeric_label() is called from inside
+		"""
+		res = self.res
+
+		direction = 1
+		if self.insidetf:
+			direction = -1
+
+		# vertical
+		if self.orientation == 'V':
 			res *= -1
-		
+
 		label = False
-		if reverse=='true':
+		if self.reverse:
 			# Count absolute i for labeling
 			counter = 0
 			for n in range(scalefrom, i):
@@ -265,191 +264,167 @@ class ScaleGen(inkex.Effect):
 			n = scaleto-counter-1
 		else:
 			n = i
-		
+
 		#label line
-		if type==0:
-			name = 'label line'
-			stroke = self.unittouu(str(labellinestrokewidth)+unit) 
+		if type == 0:
+			name = 'label_line'
+			stroke = self.labellinestrokewidth
 			line_style = { 'stroke': 'black',	'stroke-width': stroke }
 			x1 = 0
 			y1 = i*res
-			x2 = self.options.labellinelength*factor
+			x2 = self.labellinelength * direction
 			y2 = i*res
 
 			label = True
 
 		#long line
-		if type==1:
-			name = 'long line'
-			stroke = self.unittouu(str(longlinestrokewidth)+unit) 
+		if type == 1:
+			name = 'long_line'
+			stroke = self.longlinestrokewidth
 			line_style = { 'stroke': 'black', 'stroke-width': stroke }
 			x1 = 0
 			y1 = i*res
-			x2 = self.options.labellinelength*0.01*self.options.mark1wid*factor
+			x2 = self.labellinelength * self.mark1wid * direction
 			y2 = i*res
 
-		#short line
-		name = 'short line'
-		if type==2:
-			stroke = self.unittouu(str(shortlinestrokewidth)+unit) 
+		# short line
+		name = 'short_line'
+		if type == 2:
+			stroke = self.shortlinestrokewidth
 			line_style = { 'stroke': 'black', 'stroke-width': stroke }
 			x1 = 0
 			y1 = i*res
-			x2 = self.options.labellinelength*0.01*self.options.mark2wid*factor
+			x2 = self.labellinelength * self.mark2wid * direction
 			y2 = i*res
-			
-		#perpendicular line
-		if type==3:
-			name = 'perpendicular line'
-			stroke = self.unittouu(str(perplinestrokewidth)+unit) 
-			line_style = { 'stroke': 'black', 'stroke-width': stroke }	
-			
-			#if stroke is in px, use this logic:
-		#	unitfactor = self.unittouu(str(1)+unit)
-		#	strokeoffset = (labellinestrokewidth / 2) / unitfactor
-		
+
+		# perpendicular line
+		if type == 3:
+			name = 'perpendicular_line'
+			stroke = self.perplinestrokewidth
+			line_style = { 'stroke': 'black', 'stroke-width': stroke }
+
 			#if stroke is in units, use this logic:
-			strokeoffset = (labellinestrokewidth / 2)
-			
-			x1 = perplineoffset			
-			x2 = perplineoffset
-			
-			#horizontal
-			if rotate=='90':
-				y2 = ((scaleto-1)*res) + strokeoffset
-				y1 = -strokeoffset
-				
-			#vertical
+			strokeoffset = (self.labellinestrokewidth / 2)
+
+			x1 = self.perplineoffset * direction
+			x2 = self.perplineoffset * direction
+
+			# vertical
+			if self.orientation == 'V':
+				y2 = ((scaleto-1)*res) - strokeoffset*2 # Top of vertical line
+				y1 = ((scalefrom)*res) + strokeoffset   # bottom of Vertical line
+
+			# horizontal
 			else:
-				y2 = ((scaleto-1)*res) - strokeoffset
-				y1 = strokeoffset
+				y2 = ((scaleto-1)*res) + strokeoffset*2 # RHS of horiz line
+				y1 = ((scalefrom)*res) - strokeoffset   # LHS of horiz line
+
+		x1 = str(x1)
+		y1 = str(y1)
+		x2 = str(x2)
+		y2 = str(y2)
+
+		# horizontal
+		if self.orientation == 'H':
+			x1,y1 = y1,x1
+			x2,y2 = y2,x2
+
+		if label:
+			self.add_numeric_label(n , x2, y2, grpLabel, self.fontsize)
+
+		line_attribs = {'style' : str(inkex.Style(line_style)), inkex.addNS('label','inkscape') : name, 'd' : 'M '+x1+','+y1+' L '+x2+','+y2}
+		line = etree.SubElement(group, inkex.addNS('path','svg'), line_attribs )
 
 
-		x1 = str(self.unittouu(str(x1)+unit) )
-		y1 = str(self.unittouu(str(y1)+unit) )
-		x2 = str(self.unittouu(str(x2)+unit) )
-		y2 = str(self.unittouu(str(y2)+unit) )
-		
-		#horizontal
-		if rotate=='90':
-			tx = x1
-			x1 = y1
-			y1 = tx
+	def add_radial_line(self, i, scalefrom, scaleto, group, grpLabel, type=2, ishorizontal=True):
+		""" Used to draw circular chart.
+			add_numeric_label() called from inside
+		"""
+		height = self.labellinelength
 
-			tx = x2
-			x2 = y2
-			y2 = tx
+		draw_label = False
+		self.labeloffsetv *= -1 # text has upside down origin
 
-		if label==True:
-			self.addLabel(n , x2, y2, grpLabel, fontsize)
-			
-		line_attribs = {'style' : formatStyle(line_style), inkex.addNS('label','inkscape') : name, 'd' : 'M '+x1+','+y1+' L '+x2+','+y2}		
-		line = inkex.etree.SubElement(group, inkex.addNS('path','svg'), line_attribs )
-
-		
-
-
-	def addLineRad(self, i, scalefrom, scaleto, group, grpLabel, type=2, ishorizontal=True):
-		height = self.options.labellinelength
-		reverse = self.options.reverse
-		radbegin = self.options.scaleradbegin
-		radcount = self.options.scaleradcount    	
-		unit = self.options.unit    	
-		fontsize = self.options.fontsize
-		radius = self.options.radius
-		labeloffseth = self.options.labeloffseth
-		labeloffsetv = self.options.labeloffsetv
-		insidetf = self.options.insidetf
-		labellinestrokewidth = self.options.labellinestrokewidth
-		longlinestrokewidth = self.options.longlinestrokewidth
-		shortlinestrokewidth = self.options.shortlinestrokewidth
-		perplinestrokewidth = self.options.perplinestrokewidth
-		perplineoffset = self.options.perplineoffset
-		
-		label = False
-		
-		labeloffsetv *= -1
-		
-		# Count absolute count for evaluation of increment 
+		# Count absolute count for evaluation of increment
 		count = 0
 		for n in range(scalefrom, scaleto):
 			count += 1
 		countstatus = 0
 		for n in range(scalefrom, i):
 			countstatus += 1
-		
-		if reverse=='true':
+
+		if self.reverse:
 			counter = 0
 			for n in range(scalefrom, i):
 				counter += 1
-			n = scaleto-counter-1
+			n = scaleto - counter -1
 		else:
 			n = i
-		inc = radcount / (count-1)
+		#
+		inc = self.radcount / (count-1)
 		irad = countstatus*inc
-		irad = -1 * (radbegin+irad+180)
+		irad = -1 * (self.radbegin+irad+180)
 		
-		dangle = 0
-		if ishorizontal=='false':
-			dangle = 1    
-  
+		#
+		angled_text = 0
+		if not ishorizontal:
+			angled_text = 1
 		inside = -1
-		if insidetf==True:
+		if not self.insidetf:
 			inside = 1
+		flipped = 0
+		if not self.fliplabel:
+			flipped = 1
 
-		#label line
+		# label line
 		if type==0:
 			name = 'label line'
-			stroke = self.unittouu(str(labellinestrokewidth)+unit) 
+			stroke = self.labellinestrokewidth
 			line_style = { 'stroke': 'black',	'stroke-width': stroke }
-			x1 = math.sin(math.radians(irad))*radius
-			y1 = math.cos(math.radians(irad))*radius
-			x2 = math.sin(math.radians(irad))*(radius-inside*height)
-			y2 = math.cos(math.radians(irad))*(radius-inside*height)
+			x1 = math.sin(math.radians(irad))*self.radius
+			y1 = math.cos(math.radians(irad))*self.radius
+			x2 = math.sin(math.radians(irad))*(self.radius - inside*height)
+			y2 = math.cos(math.radians(irad))*(self.radius - inside*height)
 
-			label = True
-			
-		#long line
+			draw_label = True
+
+		# long line
 		if type==1:
 			name = 'long line'
-			stroke = self.unittouu(str(longlinestrokewidth)+unit) 
+			stroke = self.longlinestrokewidth
 			line_style = { 'stroke': 'black', 'stroke-width': stroke }
-			x1 = math.sin(math.radians(irad))*radius
-			y1 = math.cos(math.radians(irad))*radius
-			x2 = math.sin(math.radians(irad))*(radius-inside*height*self.options.mark1wid*0.01)
-			y2 = math.cos(math.radians(irad))*(radius-inside*height*self.options.mark1wid*0.01)
-			
-		#short line
+			x1 = math.sin(math.radians(irad))*self.radius
+			y1 = math.cos(math.radians(irad))*self.radius
+			x2 = math.sin(math.radians(irad))*(self.radius - inside*height*self.mark1wid)
+			y2 = math.cos(math.radians(irad))*(self.radius - inside*height*self.mark1wid)
+
+		# short line
 		if type==2:
 			name = 'short line'
-			stroke = self.unittouu(str(shortlinestrokewidth)+unit) 
+			stroke = self.shortlinestrokewidth
 			line_style = { 'stroke': 'black', 'stroke-width': stroke }
-			x1 = math.sin(math.radians(irad))*radius
-			y1 = math.cos(math.radians(irad))*radius
-			x2 = math.sin(math.radians(irad))*(radius-inside*height*self.options.mark2wid*0.01)
-			y2 = math.cos(math.radians(irad))*(radius-inside*height*self.options.mark2wid*0.01)
-			
-		#perpendicular line
-		if type==3:		
+			x1 = math.sin(math.radians(irad))*self.radius
+			y1 = math.cos(math.radians(irad))*self.radius
+			x2 = math.sin(math.radians(irad))*(self.radius - inside*height*self.mark2wid)
+			y2 = math.cos(math.radians(irad))*(self.radius - inside*height*self.mark2wid)
+
+		# perpendicular line
+		if type==3:
 			name = 'perpendicular line'
-			stroke = self.unittouu(str(perplinestrokewidth)+unit) 
-			line_style = {'stroke': 'black', 'stroke-width' : stroke, 'fill': 'none'}			
-			
-			rx = self.unittouu(str(radius+perplineoffset)+unit) 
+			stroke = self.perplinestrokewidth
+			line_style = {'stroke': 'black', 'stroke-width' : stroke, 'fill': 'none'}
+
+			rx = self.radius - inside*self.perplineoffset
 			ry = rx
-			
-			#if stroke is in px, use this logic:
-			#unitfactor = self.unittouu(str(1)+unit)
-			#strokeoffset = math.atan(((labellinestrokewidth / 2) / unitfactor) / radius)
-			
-			#if stroke is in units, use this logic:
-			strokeoffset = math.atan((labellinestrokewidth / 2) / radius)
-			
-			start = math.radians(radbegin + 270) - strokeoffset
-			end = math.radians(radbegin+radcount + 270) + strokeoffset
-			
-			if radcount != 360:
-				line_attribs = {'style':simplestyle.formatStyle(line_style),
+
+			#
+			strokeoffset = math.atan((self.labellinestrokewidth / 2) / self.radius)
+
+			start = math.radians(self.radbegin + 270) - strokeoffset
+			end   = math.radians(self.radbegin + self.radcount + 270) + strokeoffset
+
+			if self.radcount != 360:
+				line_attribs = {'style':str(inkex.Style(line_style)),
 					inkex.addNS('label','inkscape')        :name,
 					inkex.addNS('cx','sodipodi')           :str(0),
 					inkex.addNS('cy','sodipodi')           :str(0),
@@ -460,7 +435,7 @@ class ScaleGen(inkex.Effect):
 					inkex.addNS('open','sodipodi')         :'true',    #all ellipse sectors we will draw are open
 					inkex.addNS('type','sodipodi')         :'arc',}
 			else:
-				line_attribs = {'style':simplestyle.formatStyle(line_style),
+				line_attribs = {'style':str(inkex.Style(line_style)),
 					inkex.addNS('label','inkscape')        :name,
 					inkex.addNS('cx','sodipodi')           :str(0),
 					inkex.addNS('cy','sodipodi')           :str(0),
@@ -469,159 +444,218 @@ class ScaleGen(inkex.Effect):
 					inkex.addNS('open','sodipodi')         :'true',    #all ellipse sectors we will draw are open
 					inkex.addNS('type','sodipodi')         :'arc',}
 
-		if type!=3:	
-			# use user unit
-			x1 = self.unittouu(str(x1)+unit) 
-			y1 = self.unittouu(str(y1)+unit) 
-			x2 = self.unittouu(str(x2)+unit) 
-			y2 = self.unittouu(str(y2)+unit)
+		if type!=3: # everything excpet the perp line
 
-			if label==True :
-			
+			if draw_label:
+				# if self.radcount==360: inkex.debug(str(n)+" "+str(self.scaleto))
 				#if the circle count is 360 degrees, do not draw the last label because it will overwrite the first.
-				if not (radcount==360 and n==360):
-					x2label = math.sin(math.radians(irad + labeloffseth))*(radius-inside*(-labeloffsetv+height*self.options.mark2wid*0.01))
-					y2label = math.cos(math.radians(irad + labeloffseth))*(radius-inside*(-labeloffsetv+height*self.options.mark2wid*0.01)) 
-					x2label = self.unittouu(str(x2label)+unit)
-					y2label = self.unittouu(str(y2label)+unit)			
-					self.addLabel(n , x2label, y2label, grpLabel, fontsize,dangle*(irad+labeloffseth))
-				
-			line_attribs = {'style' : formatStyle(line_style),	inkex.addNS('label','inkscape') : name, 'd' : 'M '+str(x1)+','+str(y1)+' L '+str(x2)+','+str(y2)}
-			
-		line = inkex.etree.SubElement(group, inkex.addNS('path','svg'), line_attribs )
+				if not (self.radcount==360 and n==self.scaleto-1):
+
+					# complex adj to get text in right pos depending on flipped, angled, and insidetf
+					font_height_offset = self.svg.unittouu(str(self.fontsize)+"mm")*1.0
+					radial_offset = 0
+					rotated_offset = self.labeloffsetr - font_height_offset
+					vert_offset = self.labeloffsetv
+					if self.fliplabel:
+						radial_offset += font_height_offset
+					else:
+						rotated_offset += font_height_offset*2
+					if not self.insidetf:
+						radial_offset -= font_height_offset
+					x2label = math.sin(math.radians(irad + self.labeloffseth)) * (self.radius - inside*height + radial_offset + angled_text*rotated_offset)
+					y2label = math.cos(math.radians(irad + self.labeloffsetv)) * (self.radius - inside*height + radial_offset + angled_text*rotated_offset)
+					self.add_numeric_label(n , x2label, y2label, grpLabel, self.fontsize, angled_text*(irad))
+
+			# draw (excpet perp)
+			x1 = str(x1)
+			y1 = str(y1)
+			x2 = str(x2)
+			y2 = str(y2)
+			line_attribs = {'style': str(inkex.Style(line_style)),	inkex.addNS('label','inkscape'): name, 'd' : 'M '+str(x1)+','+str(y1)+' L '+str(x2)+','+str(y2)}
+
+		line = etree.SubElement(group, inkex.addNS('path','svg'), line_attribs )
+
 
 	def skipfunc(self, i, markArray, groups):
-	
+		""" When to draw each tick mark.
+			(Label, long, short)
+		"""
 		skip = True
 		group = groups[0]
-		type = 0
-	
+		linetype = 0
+
 		if markArray[0] != 0:
 			if (i % markArray[0])==0:
-				type = 0		# the labeled line
+				linetype = 0	# the labeled line
 				group = groups[0]
 				skip = False
 
-		if markArray[1] != 0 and skip==1:
+		if markArray[1] != 0 and skip:
 			if (i % markArray[1])==0:
-				type = 1 	# the long line
+				linetype = 1 	# the long line
 				group = groups[1]
 				skip = False
-				
-		if markArray[2] != 0 and skip==1:
+
+		if markArray[2] != 0 and skip:
 			if (i % markArray[2])==0:
-				type = 2 	# the short line
+				linetype = 2 	# the short line
 				group = groups[2]
 				skip = False
-				
-		return (skip, group, type)
-		
-		
-						      		
+
+		return (skip, group, linetype)
+
+
+### Main function
 	def effect(self):
-		scalefrom = self.options.scalefrom
-		scaleto = self.options.scaleto
-		labellinelength = self.options.labellinelength
-		scaletype = self.options.type
-		insidetf = self.options.insidetf
-		ishorizontal = self.options.ishorizontal
-		useref = self.options.useref
-		perpline = self.options.perpline
-		drawalllabels = self.options.drawalllabels
-		perpline = self.options.perpline
-		mark1 = self.options.mark1
-		mark2 = self.options.mark2
-		
-		groups = ['0', '0', '0', '0']
-		markArray = [self.options.mark0, self.options.mark1, self.options.mark2]
+		# Values from UI corrected for units etc.
+		self.unit      = self.options.unit
+		self.scaletype = self.options.stype		# straight,circular
+		self.useref    = self.options.useref	# bool
+		self.insidetf  = self.options.insidetf	# bool
+		#
+		self.external_length = self.svg.unittouu(str(self.options.external_length)+self.unit)
+		self.orientation     = self.options.orientation		# bool
+		self.radius          = self.svg.unittouu(str(self.options.radius)+self.unit)
+		self.originmark      = self.options.originmark		# bool
+		self.radbegin        = self.options.scaleradbegin
+		self.radcount        = self.options.scaleradcount
+		#
+		self.drawalllabels  = self.options.drawalllabels	# bool
+		self.scalefrom      = self.options.scalefrom		# numeric start of scale
+		self.scaleto        = self.options.scaleto			# numeric end of scale
+		self.mathexpression = self.options.mathexpression
+		self.reverse        =  self.options.reverse			# bool
+		#
+		self.fontsize     = self.svg.unittouu(str(self.options.fontsize)+"pt")	# all font calcs in pts
+		self.suffix       = self.options.suffix
+		self.ishorizontal = self.options.ishorizontal		# bool - are labels horizontal or curved in 'circular'
+		self.fliplabel    = self.options.fliplabel			# bool - flip label upside down
+		self.labeloffseth = self.svg.unittouu(str(self.options.labeloffseth)+self.unit)
+		self.labeloffsetv = self.svg.unittouu(str(self.options.labeloffsetv)+self.unit)
+		self.labeloffsetr = self.svg.unittouu(str(self.options.labeloffsetr)+self.unit)
+		#
+		self.perpline            = self.options.perpline	# bool
+		self.perplinestrokewidth = self.svg.unittouu(str(self.options.perplinestrokewidth)+self.unit)
+		self.perplineoffset      = self.svg.unittouu(str(self.options.perplineoffset)+self.unit)
+		#
+		self.labellinelength      = self.svg.unittouu(str(self.options.labellinelength)+self.unit)
+		self.labellinestrokewidth = self.svg.unittouu(str(self.options.labellinestrokewidth)+self.unit)
+		self.mark0                = self.options.mark0	# when labels appear
+		#
+		self.mark1wid            = self.options.mark1wid / 100
+		self.longlinestrokewidth = self.svg.unittouu(str(self.options.longlinestrokewidth)+self.unit)
+		self.mark1               = self.options.mark1	# when major tick marks appear
+		#
+		self.mark2wid             = self.options.mark2wid / 100
+		self.shortlinestrokewidth = self.svg.unittouu(str(self.options.shortlinestrokewidth)+self.unit)
+		self.mark2                = self.options.mark2	# when minor tick marks appear
+
+		groups = ['0', '0', '0', '0']	# holds the svg groups for organising the tick marks, labels and perp line
+		markArray = [self.mark0, self.mark1, self.mark2]	# to aid iterating when each tick line is drawn
 
 		# Get access to main SVG document element and get its dimensions.
-		svg = self.document.getroot()
+		doc = self.document.getroot()
 
 		# Again, there are two ways to get the attributes:
-		width  = self.unittouu(svg.get('width'))
-		height = self.unittouu(svg.get('height'))
-		
-		centre = self.view_center   #Put in in the centre of the current view
-		
-		if useref==True:
-			self.bbox = computeBBox(self.selected.values())			
-			try:
-				test = self.bbox[0]
-			except TypeError:
-				pass
-			else:			
-				half = (self.bbox[1] - self.bbox[0]) / 2
-				x = self.bbox[0] + half
-				
-				half = (self.bbox[3] - self.bbox[2]) / 2
-				y = self.bbox[2] + half
-				centre = (x, y)
+		# width  = self.svg.unittouu(doc.get('width'))
+		# height = self.svg.unittouu(doc.get('height'))
 
+		# Put in in the centre of the current view
+		centre = self.svg.namedview.center
+		cx, cy = centre[0], centre[1]
+		# OR use the selected elements to define the center
+		if self.useref: # use center of selected element instead of doc.
+			# get the bbox centers for each selected node
+			bboxes = [node.bounding_box().center for node in self.svg.selected.values()]
+			centers = [ (c.x,c.y) for c in bboxes] # turn vectors into lists
+			# find average of all centers.
+			if len(centers) > 0:
+				cx = sum([c[0] for c in centers]) / len(centers)
+				cy = sum([c[1] for c in centers]) / len(centers)
+
+		# adjust for external length or radius
+		if self.orientation == 'V' and self.scaletype == 'straight':
+			cy += self.external_length/2
+		if self.orientation == 'H' and self.scaletype == 'straight':
+			cx -= self.external_length/2
+		if self.scaletype == 'circular':
+			cx -= self.radius/2
+			cy += self.radius/2
+
+		centre = (cx,cy)
 		grp_transform = 'translate' + str( centre )
 		
-		grp_name = 'Label line'
+		# top level group
+		grp_name = 'Instrument_scale'
 		grp_attribs = {inkex.addNS('label','inkscape'):grp_name, 'transform':grp_transform }
-		groups[0] = inkex.etree.SubElement(self.current_layer, 'g', grp_attribs)
-		
-		if mark1 > 0:
+		toplevel_group = etree.SubElement(self.svg.get_current_layer(), 'g', grp_attribs)
+
+		# other line, label groups
+		grp_name = 'Label_line'
+		grp_attribs = {inkex.addNS('label','inkscape'):grp_name}
+		groups[0] = etree.SubElement(toplevel_group, 'g', grp_attribs)
+
+		if self.mark1 > 0:
 			grp_name = 'Long line'
-			grp_attribs = {inkex.addNS('label','inkscape'):grp_name, 'transform':grp_transform }
-			groups[1] = inkex.etree.SubElement(self.current_layer, 'g', grp_attribs)	
-			
-		if mark2 > 0:
+			grp_attribs = {inkex.addNS('label','inkscape'):grp_name}
+			groups[1] = etree.SubElement(toplevel_group, 'g', grp_attribs)
+
+		if self.mark2 > 0:
 			grp_name = 'Short line'
-			grp_attribs = {inkex.addNS('label','inkscape'):grp_name, 'transform':grp_transform }
-			groups[2] = inkex.etree.SubElement(self.current_layer, 'g', grp_attribs)	
-		
-		if drawalllabels==True:
+			grp_attribs = {inkex.addNS('label','inkscape'):grp_name}
+			groups[2] = etree.SubElement(toplevel_group, 'g', grp_attribs)
+
+		if self.drawalllabels:
 			grp_name = 'Labels'
-			grp_attribs = {inkex.addNS('label','inkscape'):grp_name, 'transform':grp_transform }
-			groups[3] = inkex.etree.SubElement(self.current_layer, 'g', grp_attribs)
+			grp_attribs = {inkex.addNS('label','inkscape'):grp_name}
+			groups[3] = etree.SubElement(toplevel_group, 'g', grp_attribs)
 
-		# to allow positive to negative counts
-		if scalefrom < scaleto:
-			scaleto += 1
+		# allow positive to negative counts
+		if self.scalefrom < self.scaleto:
+			self.scaleto += 1
 		else:
-			temp = scaleto
-			scaleto = scalefrom+1
-			scalefrom = temp
-
-		if scaletype == 'straight':
-		
-			for i in range(scalefrom, scaleto):	
-				skip, group, type = self.skipfunc(i, markArray, groups)				
-				if skip==False:
-					self.addLine(i, scalefrom, scaleto, group, groups[3], type) # addLabel is called from inside
-
-			#add the perpendicular line
-			if perpline==True:
-				self.addLine(0, scalefrom, scaleto, groups[0], groups[3], 3)		
-
-		elif scaletype == 'circular':
-		
-			for i in range(scalefrom, scaleto):
-				skip, group, type = self.skipfunc(i, markArray, groups)      		
-				if skip==False:	
-					self.addLineRad(i, scalefrom, scaleto, group, groups[3], type, ishorizontal) # addLabel is called from inside
-				
-			#add the perpendicular (circular) line
-			if perpline==True:
-				self.addLineRad(0, scalefrom, scaleto, groups[0], groups[3], 3, ishorizontal)
-				
-			if self.options.radmark=='true':
+			self.scaleto, self.scalefrom = self.scalefrom+1, self.scaleto
 			
-				grp_name = 'Radial center'
-				grp_attribs = {inkex.addNS('label','inkscape'):grp_name, 'transform':grp_transform }
-				grpRadMark = inkex.etree.SubElement(self.current_layer, 'g', grp_attribs)	
-		
-				line_style   = { 'stroke': 'black',	'stroke-width': '1' }
-				line_attribs = {'style' : formatStyle(line_style),	inkex.addNS('label','inkscape') : 'name', 'd' : 'M '+str(-10)+','+str(-10)+' L '+str(10)+','+str(10)}
-				line = inkex.etree.SubElement(grpRadMark, inkex.addNS('path','svg'), line_attribs )
-				
-				line_attribs = {'style' : formatStyle(line_style), inkex.addNS('label','inkscape') : 'name', 'd' : 'M '+str(-10)+','+str(10)+' L '+str(10)+','+str(-10)}
-				line = inkex.etree.SubElement(grpRadMark, inkex.addNS('path','svg'), line_attribs )
+		# calc resolution scale factor from external length and the scale distance
+		self.res = self.external_length / (self.scaleto - self.scalefrom)
 
-# Create effect instance and apply it.
-effect = ScaleGen()
-effect.affect()
+		if self.scaletype == 'straight':
+			for i in range(self.scalefrom, self.scaleto):
+				skip, group, type = self.skipfunc(i, markArray, groups)
+				if not skip:
+					# add_numeric_label is called from inside
+					self.add_straight_line(i, self.scalefrom, self.scaleto, group, groups[3], type)
+			# Perpendicular line
+			if self.perpline:
+				self.add_straight_line(0, self.scalefrom, self.scaleto, toplevel_group, groups[3], 3)
+
+		elif self.scaletype == 'circular':
+			for i in range(self.scalefrom, self.scaleto):
+				skip, group, type = self.skipfunc(i, markArray, groups)
+				if not skip:
+					# add_numeric_label is called from inside
+					self.add_radial_line(i, self.scalefrom, self.scaleto, group, groups[3], type, self.ishorizontal)
+
+			# Perpendicular (circular) line
+			if self.perpline:
+				self.add_radial_line(0, self.scalefrom, self.scaleto, toplevel_group, groups[3], 3, self.ishorizontal)
+			# Draw origin marker only for circular
+			if self.originmark:
+
+				grp_name = 'Radial center'
+				grp_attribs = {inkex.addNS('label','inkscape'):grp_name}
+				grp_originmark = etree.SubElement(toplevel_group, 'g', grp_attribs)
+
+				stroke = self.shortlinestrokewidth
+				origin_length = self.labellinelength * self.mark2wid/2
+				line_style   = { 'stroke': 'black',	'stroke-width': stroke }
+				line_attribs = {'style' : str(inkex.Style(line_style)),	inkex.addNS('label','inkscape') : 'name', 'd' : 'M '+str(origin_length)+','+str(origin_length)+' L '+str(-origin_length)+','+str(-origin_length)}
+				line = etree.SubElement(grp_originmark, inkex.addNS('path','svg'), line_attribs )
+
+				line_attribs = {'style' : str(inkex.Style(line_style)), inkex.addNS('label','inkscape') : 'name', 'd' : 'M '+str(-origin_length)+','+str(origin_length)+' L '+str(origin_length)+','+str(-origin_length)}
+				line = etree.SubElement(grp_originmark, inkex.addNS('path','svg'), line_attribs )
+
+###
+if __name__ == '__main__':
+	effect = ScaleGen()
+	effect.run()
