@@ -31,11 +31,11 @@
 
 			<separator/>
 			<label>Circular:</label>
-			<param name="radius"        type="float" indent="1" gui-text="Radius (units):" min="0.000000001" max="20000">50.0</param>
+			<param name="radius"        type="float" indent="1" gui-text="Radius (units):" min="0.000000001" max="20000" precision="2">50.0</param>
 			<param name="originmark"    type="bool"  indent="1" gui-text="Mark origin">true</param>
 			<label indent="2">0 deg is at top. Positive values are clockwise.</label>
-			<param name="scaleradbegin" type="float" indent="2" gui-text="Start (deg):" min="-360.0" max="360.0">0.0</param>
-			<param name="scaleradcount" type="float" indent="2" gui-text="Count (deg):" min="-360.0" max="360.0">90.0</param>
+			<param name="scaleradbegin" type="float" indent="2" gui-text="Start (deg):" min="-360.0" max="360.0" precision="2">0.0</param>
+			<param name="scaleradcount" type="float" indent="2" gui-text="Count (deg):" min="-360.0" max="360.0" precision="2">90.0</param>
 		</page>	
 
 		<page name="labelopt" gui-text="Labels">
@@ -56,33 +56,33 @@
 
 			<separator/>
 			<label>Offset: (relative to label orientation)</label>
-			<param name="labeloffseth" type="float" indent="1" gui-text="Horizontal offset:" min="-100" max="100">0.0</param>
-			<param name="labeloffsetv" type="float" indent="1" gui-text="Vertical offset:" min="-100" max="100">0.0</param>
-			<param name="labeloffsetr" type="float" indent="1" gui-text="Radial offset (circular only):" min="-100" max="100">0.0</param>
+			<param name="labeloffseth" type="float" indent="1" gui-text="Horizontal offset:" min="-100" max="100" precision="2">0.0</param>
+			<param name="labeloffsetv" type="float" indent="1" gui-text="Vertical offset:" min="-100" max="100" precision="2">0.0</param>
+			<param name="labeloffsetr" type="float" indent="1" gui-text="Radial offset (circular only):" min="-100" max="100" precision="2">0.0</param>
 		</page>
 
 		<page name="lineopt" gui-text="Lines">
 			<label>Perpendicular line:</label>
 			<param name="perpline" type="bool" indent="1" gui-text="Draw perpendicular line">false</param>
-			<param name="perplinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20">0.2</param>
-			<param name="perplineoffset"      type="float" indent="1" gui-text="Offset (units):" min="-100" max="100">0.0</param>
+			<param name="perplinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.2</param>
+			<param name="perplineoffset"      type="float" indent="1" gui-text="Offset (units):" min="-100" max="100" precision="2">0.0</param>
 			
 			<separator/>
 			<label>Label line:</label>
-			<param name="labellinelength"      type="float" indent="1" gui-text="Length (units):" min="0.01" max="100">5.0</param>
-			<param name="labellinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20">0.4</param>
+			<param name="labellinelength"      type="float" indent="1" gui-text="Length (units):" min="0.01" max="100" precision="2">5.0</param>
+			<param name="labellinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.4</param>
 			<param name="mark0" type="int" indent="1" gui-text="Draw every x lines (label number based on this):" min="0" max="100">10</param>
 			
 			<separator/>
 			<label>Long line:</label>
 			<param name="mark1wid" type="int" indent="1" gui-text="Length (percentage of label line length):" min="0" max="200">85</param>
-			<param name="longlinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20">0.2</param>
+			<param name="longlinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.2</param>
 			<param name="mark1"    type="int" indent="1" gui-text="Draw every x lines:" min="0" max="100">5</param>
 			
 			<separator/>
 			<label>Short line:</label>
 			<param name="mark2wid" type="int" indent="1" gui-text="Length (percentage of label line length):" min="0" max="200">60</param>
-			<param name="shortlinestrokewidth"  type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20">0.2</param>
+			<param name="shortlinestrokewidth"  type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.2</param>
 			<param name="mark2"    type="int" indent="1" gui-text="Draw every x lines:" min="0" max="100">1</param>
 		</page>
 		<page name="help" gui-text="Help">
