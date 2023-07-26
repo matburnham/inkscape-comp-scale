@@ -1,9 +1,12 @@
 - INSTALL
 
-Put "render_scale.inx" and "render_scale.py" in your Inkscape extension directory.
-Inkscpae Preferences will navigate you to the user extensions folder.
+Put "render_speed_scale.inx" and "render_speed_scale.py" in your Inkscape extension directory.
+Inkscape Preferences will navigate you to the user extensions folder.
 
 - COMMENT
+2023 Significant codebase changes to draw speed scale rules.
+	Removed much of the genericity for this specific need.
+
 Updated to Inkscape 1.0 and some features added (Neon22)
 
 Tested on Inkscape 0.91

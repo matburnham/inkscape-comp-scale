@@ -1,9 +1,5 @@
-## Instrument_scale
-Create a linear or circular arc display suitable for various kinds of panel meter.
-Settings for  range, tick marks, labels, and angles for the circular option.
-Many minor improvements to label placement, corner cases fixed, etc.
-
-Useful unicode char for Temperature = °
+## Speed scale
+Create a linear speed scale suitable for marking maps for time flown.
 
 Appears under Extensions/Render
 
@@ -20,5 +16,6 @@ See Inkscape Preferences for the user extension folder. Navigation is easy withi
 - Updates: Paul Rogalinski-Pinter https://github.com/pulsar256/inkscapescalegenerator
 - Updates: 2015 Bit Barrel Media https://github.com/brathering82/inkscape
 - Updates: Neon22 (1.0+) https://github.com/Neon22/inkscape-instrument_scale
+- Updates: matburnham https://github.com/matburnham/inkscape-comp-scale
 
 (See Readme.txt and python header for changes prior to Inkscape 1.0 migration and improvements)

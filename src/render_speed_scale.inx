@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+	<name>Speed scale</name>
+	<id>matburnham.Render.render_speed_scale</id>
+	<dependency type="executable" location="extensions">render_speed_scale.py</dependency>
+	<param name="tab" type="notebook">
+		<page name="speedopt" gui-text="Speed">
+			<param name="speed" type="int" gui-text="Speed:" min="30" max="200">60</param>
+			<param name="speed-unit" type="optiongroup" appearance="combo"  gui-text="Units:">
+				<option value="kts">kts</option>
+				<option value="mph">mph</option>
+				<option value="kph">kph</option>
+			</param>
+			<param name="scale" type="optiongroup" appearance="combo" gui-text="Scale:">
+				<option value="200000">1:200K</option>
+				<option value="250000">1:250K</option>
+				<option value="500000">1:500K</option>
+			</param>
+			<param name="max-length" type="int" gui-text="Maximum length (mm):" min="20" max="500">280</param>
+		</page>
+		<page name="global" gui-text="Shape">
+			<param name="unit" type="optiongroup" appearance="combo"  gui-text="Units:">
+				<option value="mm">mm</option>
+				<option value="cm">cm</option>
+				<option value="in">inch</option>
+				<option value="px">pixel</option>
+				<option value="pt">point</option>
+			</param>
+
+			<param name="useref"   type="bool" gui-text="Origin from bounding box center">false</param>
+			<param name="insidetf" type="bool" gui-text="Left/Upper side">false</param>
+		</page>	
+
+		<page name="labelopt" gui-text="Labels">
+			<separator/>
+			<label>Format:</label>
+			<param name="fontsize" type="float" indent="1" gui-text="Fontsize (pt):" min="1" max="250">5.0</param>
+			<param name="suffix"   type="string" indent="1" gui-text="Label suffix:"></param>
+
+			<separator/>
+			<label>Offset: (relative to label orientation)</label>
+			<param name="labeloffseth" type="float" indent="1" gui-text="Horizontal offset:" min="-100" max="100" precision="2">0.0</param>
+			<param name="labeloffsetv" type="float" indent="1" gui-text="Vertical offset:" min="-100" max="100" precision="2">0.0</param>
+		</page>
+
+		<page name="lineopt" gui-text="Lines">
+			<label>Perpendicular line:</label>
+			<param name="perplinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.2</param>
+			<param name="perplineoffset"      type="float" indent="1" gui-text="Offset (units):" min="-100" max="100" precision="2">0.0</param>
+			<separator/>
+			<param name="textlinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">2.5</param>
+			<param name="textlineoffset"      type="float" indent="1" gui-text="Offset (units):" min="-100" max="100" precision="2">2</param>
+			<separator/>
+			<label>Label line:</label>
+			<param name="labellinelength"      type="float" indent="1" gui-text="Length (units):" min="0.01" max="100" precision="2">5.0</param>
+			<param name="labellinestrokewidth" type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.4</param>
+			<param name="dimensionoffset"     type="int"   indent="1" gui-text="Dimension offset (units):" min="0" max="200">10</param>
+			
+			<separator/>
+			<label>Short line:</label>
+			<param name="mark2wid" type="int" indent="1" gui-text="Length (percentage of label line length):" min="0" max="200">60</param>
+			<param name="shortlinestrokewidth"  type="float" indent="1" gui-text="Stroke width (units):" min="0.0" max="20" precision="2">0.2</param>
+
+			<separator/>
+			<label>Arrow:</label>
+			<param name="arrow-style" type="optiongroup" appearance="combo" indent="1" gui-text="Style:">
+				<option value="normal">Normal</option>
+				<option value="sharp">Sharp</option>
+			</param>
+			<param name="arrow-len" type="int" indent="1" gui-text="Length:" min="0" max="20">10</param>
+			<param name="arrow-angle" type="int" indent="1" gui-text="Angle:" min="0.0" max="90" precision="0">30</param>
+		</page>
+		<page name="help" gui-text="Help">
+			<param name="usage" type="description" xml:space="preserve">This extension makes a speed scale ruler.
+
+Choose your speed/units, and map scale.
+
+The size of the design is set on the Shape page.
+The values on the meter are defined on the Labels page.
+The lines and various tick marks are defined on the Lines page.
+
+			</param>
+		</page>
+	</param>
+
+	<effect needs-live-preview="true">
+		<object-type>path</object-type>
+		<effects-menu>
+			<submenu name="Render">
+			</submenu>
+		</effects-menu>
+	</effect>
+	<script>
+		<command reldir="extensions" interpreter="python">render_speed_scale.py</command>
+	</script>
+</inkscape-extension>
